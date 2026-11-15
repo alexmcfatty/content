@@ -13,18 +13,19 @@ Personal idea bank and script helper for short-form videos. One `index.html` PWA
 ### 1. Supabase (new free project)
 1. Go to supabase.com, create a new project (any name, region Sydney).
 2. SQL Editor → New query → paste all of `schema.sql` → Run.
-3. Authentication → Email Templates → **Magic Link**: add this line to the email body so it includes a code:
-   `Your code: {{ .Token }}`
-   (The app signs in with the code, because on iPhone a tapped link opens Safari, not the home-screen app.)
-4. Project Settings → API: copy the **Project URL** and the **anon public** key into `config.js`.
+3. Project Settings → API Keys: copy the **Project URL** and the **publishable** key into `config.js`.
+
+Login is email + password (Supabase won't let free projects edit email templates, and on iPhone
+an emailed sign-in link opens Safari instead of the home-screen app).
 
 ### 2. Hosting
 Push this folder to its own GitHub repo and turn on Pages (Settings → Pages → Deploy from branch → `main` / root).
 Then in Supabase → Authentication → URL Configuration, set the Site URL to the Pages address.
 
 ### 3. First sign-in, then lock it
-1. Open the app, enter your email, type the code from the email.
-2. Supabase → Authentication → Sign In / Providers → turn **off** "Allow new users to sign up". Now only your account can get in.
+1. Open the app, enter your email and a password, tap **First time? Create account**.
+2. Tap the confirm link in the email (any browser), then sign in in the app.
+3. Supabase → Authentication → Sign In / Providers → turn **off** "Allow new users to sign up". Now only your account can get in.
 
 ### 4. Install on your phone
 - iPhone: open the site in Safari → Share → Add to Home Screen.

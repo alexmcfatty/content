@@ -79,17 +79,15 @@ label.lbl{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
 <section id="login" class="hidden">
   <h1>Content Bank</h1>
   <div class="card">
-    <div id="loginStep1">
+    <form id="loginForm">
       <label class="lbl" for="email">Email</label>
-      <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com">
-      <button class="primary mt" style="width:100%" id="sendCode">Email me a code</button>
-    </div>
-    <div id="loginStep2" class="hidden">
-      <p class="muted">Check your email and type the code here.</p>
-      <input id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code">
-      <button class="primary mt" style="width:100%" id="verifyCode">Sign in</button>
-      <button class="mt small" id="backToEmail">Use a different email</button>
-    </div>
+      <input id="email" type="email" autocomplete="username" inputmode="email" placeholder="you@example.com">
+      <label class="lbl" for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password">
+      <button class="primary mt" style="width:100%" id="signIn" type="submit">Sign in</button>
+      <button class="mt small" id="signUp" type="button">First time? Create account</button>
+    </form>
+    <p id="loginMsg" class="muted hidden"></p>
   </div>
 </section>
 
@@ -183,7 +181,7 @@ label.lbl{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
 <div id="toast"></div>
 
 <script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
 'use strict';
@@ -497,20 +495,27 @@ document.addEventListener('click', e=>{ const el=e.target.closest('.idea[data-id
 /* ---------- Login ---------- */
 function showApp(){ $('login').classList.add('hidden'); $('app').classList.remove('hidden'); reload(); }
 function showLogin(){ $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }
-$('sendCode').onclick = async ()=>{
-  const email=$('email').value.trim(); if(!email) return;
-  $('sendCode').disabled=true;
-  const { error } = await sb.auth.signInWithOtp({ email });
-  $('sendCode').disabled=false;
-  if(error){ toast(error.message); return; }
-  $('loginStep1').classList.add('hidden'); $('loginStep2').classList.remove('hidden'); $('code').focus();
+function loginMsg(t){ $('loginMsg').textContent=t; $('loginMsg').classList.toggle('hidden', !t); }
+$('loginForm').onsubmit = async e=>{
+  e.preventDefault();
+  const email=$('email').value.trim(), password=$('password').value;
+  if(!email || !password) return;
+  $('signIn').disabled=true;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  $('signIn').disabled=false;
+  if(error){ loginMsg(error.message); return; }
+  loginMsg(''); showApp();
 };
-$('verifyCode').onclick = async ()=>{
-  const { error } = await sb.auth.verifyOtp({ email:$('email').value.trim(), token:$('code').value.trim(), type:'email' });
-  if(error){ toast(error.message); return; }
-  showApp();
+$('signUp').onclick = async ()=>{
+  const email=$('email').value.trim(), password=$('password').value;
+  if(!email || password.length<8){ loginMsg('Enter your email and a password of at least 8 characters.'); return; }
+  $('signUp').disabled=true;
+  const { data, error } = await sb.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin + location.pathname } });
+  $('signUp').disabled=false;
+  if(error){ loginMsg(error.message); return; }
+  if(data.session){ loginMsg(''); showApp(); }
+  else loginMsg('Account created. Tap the confirm link in your email (any browser is fine), then come back here and sign in.');
 };
-$('backToEmail').onclick = ()=>{ $('loginStep2').classList.add('hidden'); $('loginStep1').classList.remove('hidden'); };
 $('signOut').onclick = async ()=>{ if(sb){ await sb.auth.signOut(); ideas=[]; showLogin(); } else toast('Not signed in (this device only)'); };
 
 if(!sb){ $('localBanner').classList.remove('hidden'); $('signOut').classList.add('hidden'); showApp(); }

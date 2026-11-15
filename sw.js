@@ -1,5 +1,5 @@
 // Network first, so edits (including rules.txt) show up straight away; cache is the offline fallback.
-const CACHE = 'content-bank-v1';
+const CACHE = 'content-bank-v2';
 const SHELL = ['./', 'index.html', 'config.js', 'rules.txt', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
