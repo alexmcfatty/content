@@ -33,6 +33,7 @@ Then in Supabase → Authentication → URL Configuration, set the Site URL to t
 
 ## Using it
 - Save an idea: type it, hit Save. Tags are optional.
+- Series: tap **+ New series** to add a heading (with optional notes on what it's about). Open a series to see its ideas and add new ones straight under it. Renaming a series moves its ideas with it; deleting one keeps its ideas.
 - Sunday: tap **Pick my week** → swap any → **Accept week**. Rules: 3 light + 1 serious, at least 2 Training in public, max 1 per series. If there aren't enough ideas it relaxes the series rule first and tells you.
 - Script: open an idea → **Copy prompt** → **Open Claude** → paste. Tweak buttons copy a follow-up line for the same chat. Paste the final script back and **Save script** (moves Idea → Scripted).
 - Tip: make a Claude Project with `rules.txt` as its instructions, and you only need to paste the idea part.

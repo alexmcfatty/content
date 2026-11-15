@@ -27,3 +27,22 @@ language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
 drop trigger if exists ideas_touch on public.ideas;
 create trigger ideas_touch before update on public.ideas
   for each row execute function public.touch_updated_at();
+
+
+create table if not exists public.series (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name        text not null,
+  notes       text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique (user_id, name)
+);
+
+alter table public.series enable row level security;
+
+create policy "own series" on public.series
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create trigger series_touch before update on public.series
+  for each row execute function public.touch_updated_at();

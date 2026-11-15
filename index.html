@@ -71,6 +71,18 @@ label.lbl{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
 #toast.show{opacity:1}
 .hidden{display:none!important}
 .danger{color:var(--serious)}
+.hrow{display:flex;justify-content:space-between;align-items:center}
+.hrow button{text-transform:none;letter-spacing:0}
+.series{padding:0;overflow:hidden;margin-bottom:10px}
+.shead{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;cursor:pointer}
+.shead .body{flex:1;min-width:0}
+.shead .chev{color:var(--muted);transition:transform .15s;margin-top:2px}
+.series.open .chev{transform:rotate(90deg)}
+.snotes{font-size:14px;color:var(--muted);margin-top:4px;white-space:pre-wrap;word-break:break-word}
+.sbody{display:none;border-top:1px solid var(--line)}
+.series.open .sbody{display:block}
+.sadd{display:flex;gap:8px;padding:10px 14px}
+.sadd input{flex:1;min-width:0}
 </style>
 </head>
 <body>
@@ -108,6 +120,9 @@ label.lbl{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
 
   <h2>This week</h2>
   <div class="card" id="weekCard"></div>
+
+  <h2 class="hrow">Series <button class="small" id="newSeries">+ New series</button></h2>
+  <div id="seriesList"></div>
 
   <h2>All ideas</h2>
   <input id="search" type="search" placeholder="Search">
@@ -163,6 +178,19 @@ label.lbl{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
       <button id="repick">Shuffle all</button>
       <button class="primary" id="acceptWeek">Accept week</button>
     </div>
+  </div>
+</div>
+
+<!-- Series sheet (new or edit) -->
+<div class="sheet" id="seriesSheet">
+  <div class="panel">
+    <div class="head"><b id="seriesSheetTitle">New series</b><button class="small" data-close>Close</button></div>
+    <label class="lbl" for="sName">Name</label>
+    <input id="sName" placeholder="e.g. Road to 180">
+    <label class="lbl" for="sNotes">What the series is about (optional)</label>
+    <textarea id="sNotes" rows="4" placeholder="The idea behind the series, the format, how often..."></textarea>
+    <button class="primary mt" style="width:100%" id="saveSeries">Save series</button>
+    <p style="text-align:center;margin-top:22px"><button class="small danger hidden" id="deleteSeries">Delete series (keeps its ideas)</button></p>
   </div>
 </div>
 
@@ -240,43 +268,65 @@ const useCloud = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase
 const sb = useCloud ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
 const LS_KEY = 'cb_ideas_v1';
 
-const store = {
-  async list(){
-    if(!sb){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch(e){ return []; } }
-    const { data, error } = await sb.from('ideas').select('*').order('created_at',{ascending:false});
-    if(error) throw error; return data;
-  },
-  async insert(row){
-    if(!sb){
-      const now=new Date().toISOString();
-      const r={ id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random())), status:'Idea', script:null, week_of:null, created_at:now, updated_at:now, ...row };
-      saveLocal([r, ...ideas]); return r;
+// One store per table: Supabase when connected, otherwise this browser's localStorage.
+function makeStore(table, lsKey, defaults){
+  const local = ()=>{ try{ return JSON.parse(localStorage.getItem(lsKey)||'[]'); }catch(e){ return []; } };
+  const save = list=>{ try{ localStorage.setItem(lsKey, JSON.stringify(list)); }catch(e){ toast('Could not save on this device'); } };
+  return {
+    async list(){
+      if(!sb) return local();
+      const { data, error } = await sb.from(table).select('*');
+      if(error) throw error; return data;
+    },
+    async insert(row){
+      if(!sb){
+        const now=new Date().toISOString();
+        const r={ id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random())), ...defaults, created_at:now, updated_at:now, ...row };
+        save([...local(), r]); return r;
+      }
+      const { data, error } = await sb.from(table).insert(row).select().single();
+      if(error) throw error; return data;
+    },
+    async update(id, patch){
+      if(!sb){
+        const list = local().map(i => i.id===id ? {...i, ...patch, updated_at:new Date().toISOString()} : i);
+        save(list); return list.find(i=>i.id===id);
+      }
+      const { data, error } = await sb.from(table).update(patch).eq('id',id).select().single();
+      if(error) throw error; return data;
+    },
+    async remove(id){
+      if(!sb){ save(local().filter(i=>i.id!==id)); return; }
+      const { error } = await sb.from(table).delete().eq('id',id);
+      if(error) throw error;
     }
-    const { data, error } = await sb.from('ideas').insert(row).select().single();
-    if(error) throw error; return data;
-  },
-  async update(id, patch){
-    if(!sb){
-      const list = ideas.map(i => i.id===id ? {...i, ...patch, updated_at:new Date().toISOString()} : i);
-      saveLocal(list); return list.find(i=>i.id===id);
-    }
-    const { data, error } = await sb.from('ideas').update(patch).eq('id',id).select().single();
-    if(error) throw error; return data;
-  },
-  async remove(id){
-    if(!sb){ saveLocal(ideas.filter(i=>i.id!==id)); return; }
-    const { error } = await sb.from('ideas').delete().eq('id',id);
-    if(error) throw error;
-  }
-};
-function saveLocal(list){ try{ localStorage.setItem(LS_KEY, JSON.stringify(list)); }catch(e){ toast('Could not save on this device'); } }
+  };
+}
+const store = makeStore('ideas', LS_KEY, { status:'Idea', script:null, week_of:null });
+const seriesStore = makeStore('series', 'cb_series_v1', { notes:null });
 
 let ideas = [];
+let seriesList = [];   // [{id, name, notes}] in the order they were made
+const byNewest = (a,b)=> (b.created_at||'').localeCompare(a.created_at||'');
 function setIdea(row){ const i=ideas.findIndex(x=>x.id===row.id); if(i>=0) ideas[i]=row; else ideas.unshift(row); }
+function seriesNames(){ return seriesList.map(s=>s.name); }
+
+async function loadSeries(){
+  let rows = await seriesStore.list();
+  if(!rows.length){
+    // First run: start with the built-in series so nothing is lost.
+    for(const name of SERIES){ try{ rows.push(await seriesStore.insert({ name })); }catch(e){} }
+    if(sb) rows = await seriesStore.list();
+  }
+  seriesList = rows.sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
+}
 
 async function reload(){
-  try { ideas = await store.list(); }
+  try { ideas = (await store.list()).sort(byNewest); }
   catch(e){ toast('Could not load ideas: '+e.message); }
+  try { await loadSeries(); }
+  catch(e){ seriesList = SERIES.map(name=>({ id:'builtin-'+name, name })); toast('Could not load series: '+e.message); }
+  refreshSeriesSelects();
   render();
 }
 
@@ -290,7 +340,108 @@ function tagsHtml(i){
   </div>`;
 }
 
-function render(){ renderWeek(); renderList(); }
+function render(){ renderWeek(); renderSeries(); renderList(); }
+
+/* ---------- Series ---------- */
+const OPEN_KEY='cb_open_series';
+let openSeries = new Set();
+try{ openSeries = new Set(JSON.parse(localStorage.getItem(OPEN_KEY)||'[]')); }catch(e){}
+function saveOpen(){ try{ localStorage.setItem(OPEN_KEY, JSON.stringify([...openSeries])); }catch(e){} }
+
+function refreshSeriesSelects(){
+  [['capSeries','Series'],['dSeries','None'],['fSeries','All series']].forEach(([id,blank])=>{
+    const el=$(id), v=el.value; fillSelect(el, seriesNames(), blank);
+    if(v && !seriesNames().includes(v)) el.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">${esc(v)}</option>`);
+    el.value=v;
+  });
+}
+
+function renderSeries(){
+  $('seriesList').innerHTML = seriesList.map(s=>{
+    const mine = ideas.filter(i=>i.series===s.name);
+    const left = mine.filter(i=>i.status!=='Posted').length;
+    return `<div class="card series${openSeries.has(s.id)?' open':''}" data-sid="${esc(s.id)}">
+      <div class="shead" data-toggle="${esc(s.id)}">
+        <span class="chev">›</span>
+        <div class="body"><b>${esc(s.name)}</b>
+          <span class="muted"> · ${mine.length} idea${mine.length===1?'':'s'}${mine.length&&left!==mine.length?`, ${left} not posted`:''}</span>
+          ${s.notes?`<div class="snotes">${esc(s.notes)}</div>`:''}
+        </div>
+        <button class="small" data-edit-series="${esc(s.id)}">Edit</button>
+      </div>
+      <div class="sbody">
+        ${mine.map(i=>`<div class="idea" data-id="${esc(i.id)}"><div class="t">${esc(i.text)}</div>${tagsHtml(i)}</div>`).join('')}
+        <div class="sadd"><input placeholder="New video idea for this series" data-add-input="${esc(s.id)}" enterkeyhint="done"><button class="primary small" data-add="${esc(s.id)}">Add</button></div>
+      </div>
+    </div>`;
+  }).join('') || `<div class="card empty">No series yet.</div>`;
+}
+
+async function addToSeries(sid){
+  const s = seriesList.find(x=>x.id===sid); const input = document.querySelector(`[data-add-input="${CSS.escape(sid)}"]`);
+  const text = input && input.value.trim(); if(!s || !text){ input && input.focus(); return; }
+  try{
+    setIdea(await store.insert({ text, series:s.name }));
+    render(); toast('Added to '+s.name);
+    const again = document.querySelector(`[data-add-input="${CSS.escape(sid)}"]`); again && again.focus();
+  }catch(e){ toast('Not saved: '+e.message); }
+}
+
+let editingSeries = null;
+function openSeriesSheet(sid){
+  editingSeries = sid ? seriesList.find(s=>s.id===sid) : null;
+  $('seriesSheetTitle').textContent = editingSeries ? 'Edit series' : 'New series';
+  $('sName').value = editingSeries ? editingSeries.name : '';
+  $('sNotes').value = editingSeries ? (editingSeries.notes||'') : '';
+  $('deleteSeries').classList.toggle('hidden', !editingSeries);
+  openSheet('seriesSheet'); if(!editingSeries) $('sName').focus();
+}
+$('newSeries').onclick = ()=>openSeriesSheet(null);
+$('saveSeries').onclick = async ()=>{
+  const name=$('sName').value.trim(), notes=$('sNotes').value.trim()||null;
+  if(!name){ $('sName').focus(); return; }
+  if(seriesList.some(s=>s.name.toLowerCase()===name.toLowerCase() && s!==editingSeries)){ toast('You already have a series called that'); return; }
+  const btn=$('saveSeries'); btn.disabled=true;
+  try{
+    if(editingSeries){
+      const old=editingSeries.name;
+      const row=await seriesStore.update(editingSeries.id,{ name, notes });
+      seriesList=seriesList.map(s=>s.id===row.id?row:s);
+      if(old!==name) for(const i of ideas.filter(i=>i.series===old)) setIdea(await store.update(i.id,{ series:name }));
+    } else {
+      const row=await seriesStore.insert({ name, notes });
+      seriesList.push(row); openSeries.add(row.id); saveOpen();
+    }
+    refreshSeriesSelects(); render(); closeSheet('seriesSheet'); toast('Series saved');
+  }catch(e){ toast('Not saved: '+e.message); }
+  btn.disabled=false;
+};
+$('deleteSeries').onclick = async ()=>{
+  const s=editingSeries; if(!s) return;
+  const n=ideas.filter(i=>i.series===s.name).length;
+  if(!confirm(`Delete the "${s.name}" series?${n?` Its ${n} idea${n===1?'':'s'} stay in All ideas with no series.`:''}`)) return;
+  try{
+    for(const i of ideas.filter(i=>i.series===s.name)) setIdea(await store.update(i.id,{ series:null }));
+    await seriesStore.remove(s.id);
+    seriesList=seriesList.filter(x=>x.id!==s.id); openSeries.delete(s.id); saveOpen();
+    refreshSeriesSelects(); render(); closeSheet('seriesSheet'); toast('Series deleted');
+  }catch(e){ toast('Not deleted: '+e.message); }
+};
+document.addEventListener('click', e=>{
+  const edit=e.target.closest('[data-edit-series]');
+  if(edit){ e.stopPropagation(); openSeriesSheet(edit.dataset.editSeries); return; }
+  const add=e.target.closest('[data-add]');
+  if(add){ addToSeries(add.dataset.add); return; }
+  const tog=e.target.closest('[data-toggle]');
+  if(tog){
+    const id=tog.dataset.toggle; openSeries.has(id)?openSeries.delete(id):openSeries.add(id); saveOpen();
+    tog.closest('.series').classList.toggle('open', openSeries.has(id));
+  }
+});
+document.addEventListener('keydown', e=>{
+  const inp=e.target.closest && e.target.closest('[data-add-input]');
+  if(inp && e.key==='Enter'){ e.preventDefault(); addToSeries(inp.dataset.addInput); }
+});
 
 function renderWeek(){
   const wk = mondayOf();
@@ -346,6 +497,8 @@ let current = null;
 function openIdea(id){
   current = ideas.find(i=>i.id===id); if(!current) return;
   $('dText').value=current.text||''; $('dPillar').value=current.pillar||''; $('dTone').value=current.tone||'';
+  refreshSeriesSelects();
+  if(current.series && !seriesNames().includes(current.series)) $('dSeries').insertAdjacentHTML('beforeend', `<option value="${esc(current.series)}">${esc(current.series)}</option>`);
   $('dSeries').value=current.series||''; $('dStatus').value=current.status||'Idea'; $('dScript').value=current.script||'';
   openSheet('ideaSheet');
 }
