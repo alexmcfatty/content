@@ -37,3 +37,10 @@ Then in Supabase → Authentication → URL Configuration, set the Site URL to t
 - Sunday: tap **Pick my week** → swap any → **Accept week**. Rules: 3 light + 1 serious, at least 2 Training in public, max 1 per series. If there aren't enough ideas it relaxes the series rule first and tells you.
 - Script: open an idea → **Copy prompt** → **Open Claude** → paste. Tweak buttons copy a follow-up line for the same chat. Paste the final script back and **Save script** (moves Idea → Scripted).
 - Tip: make a Claude Project with `rules.txt` as its instructions, and you only need to paste the idea part.
+
+## Editing with Claude Code
+Needs `brew install ffmpeg whisper-cpp` and `~/.whisper-models/ggml-base.en.bin`.
+- `python3 tools/autocut.py transcribe CLIP.MOV`: numbered lines with timestamps, for picking takes.
+- `python3 tools/autocut.py cut CLIP.MOV [--keep 1.2-8.4,10-15]`: cuts pauses and "um"s, exports a 9:16 mp4 plus an .srt of captions to `edits/`.
+- `editing-rules.md` holds the editing rules Claude follows. Add one every time an edit gets sent back.
+- Video files and `edits/` never get committed (this repo is public).
