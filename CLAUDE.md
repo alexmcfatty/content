@@ -13,6 +13,10 @@ Personal context (goals, current numbers, dates) lives in `CLAUDE.local.md`, whi
 - `tools/autocut.py`: the editing pipeline (below).
 - `raw/` (clips to edit), `broll/` (the b-roll library) and `edits/` (outputs) are git-ignored.
 
+## Skills (local, in .claude/skills)
+`/script` (idea → hooks, looped script, shots, caption), `/cut` (clips → rough cut with b-roll),
+`/insights` (screenshots → diagnosis, logged in `insights.local.md`), `/week` (Sunday plan). Use them for those jobs.
+
 ## Writing (hooks, scripts, captions)
 - Follow `rules.txt` exactly: dry, understated, self-deprecating Aussie; no preaching or advice to the viewer; flat endings; banned words; no gambling/betting/side-business specifics, only "a business I'm building on the side"; no money figures; no invented numbers (use [brackets]).
 - Structure: the hook lands in the first second, and each open loop closes within 3–5 seconds while the next one opens. Only the last loop stays open.
