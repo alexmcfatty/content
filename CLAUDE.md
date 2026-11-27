@@ -18,7 +18,7 @@ Personal context (goals, current numbers, dates) lives in `CLAUDE.local.md`, whi
 `/insights` (screenshots → diagnosis, logged in `insights.local.md`), `/week` (Sunday plan). Use them for those jobs.
 
 ## Writing (hooks, scripts, captions)
-- Follow `rules.txt` exactly: dry, understated, self-deprecating Aussie; no preaching or advice to the viewer; flat endings; banned words; no gambling/betting/side-business specifics, only "a business I'm building on the side"; no money figures; no invented numbers (use [brackets]).
+- Follow `rules.txt` exactly: dry, understated, self-deprecating Aussie; no preaching or advice to the viewer (except the "Passion for men" series, see `rules.txt`); flat endings; banned words; no gambling/betting/side-business specifics, only "a business I'm building on the side"; no money figures; no invented numbers (use [brackets]).
 - Structure: the hook lands in the first second, and each open loop closes within 3–5 seconds while the next one opens. Only the last loop stays open.
 - Engagement through the caption (an easy question, "send this to the mate who...") never through spoken "comment/share" asks.
 - Offer options with a pick and a reason. When feedback is "boring", bring sharper ideas, not more explanation.
